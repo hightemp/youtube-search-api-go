@@ -10,12 +10,16 @@ import (
 
 func main() {
 	query := flag.String("query", "", "Search query")
-	limit := flag.Int("limit", 5, "Number of results to display")
+	limit := flag.Int("limit", 20, "Number of results to display (minimum 20)")
 	includePlaylist := flag.Bool("playlist", false, "Include playlists in search results")
 	flag.Parse()
 
 	if *query == "" {
 		log.Fatal("Please specify a search query using the -query flag")
+	}
+
+	if *limit < 20 {
+		*limit = 20
 	}
 
 	runCLI(*query, *limit, *includePlaylist)
@@ -30,17 +34,26 @@ func runCLI(query string, limit int, includePlaylist bool) {
 	}
 
 	fmt.Printf("Search results for query: %s\n\n", query)
+	count := 0
 	for _, item := range result.Items {
+		if count >= limit {
+			break
+		}
 		switch v := item.(type) {
 		case youtubesearchapi.Video:
 			printVideo(v)
+			count++
 		case youtubesearchapi.Channel:
 			printChannel(v)
+			count++
 		case youtubesearchapi.Playlist:
 			printPlaylist(v)
+			count++
 		}
 		fmt.Println("---")
 	}
+
+	fmt.Printf("Displayed %d out of %d results\n", count, len(result.Items))
 }
 
 func printVideo(video youtubesearchapi.Video) {

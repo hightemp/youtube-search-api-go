@@ -23,7 +23,7 @@ go get -u github.com/yourusername/youtube-search-api-go
 Import the package in your Go code:
 
 ```go
-import "github.com/yourusername/youtube-search-api-go"
+import "github.com/yourusername/youtube-search-api-go/pkg/youtubesearchapi"
 ```
 
 Use the provided functions to interact with YouTube data. For example:
