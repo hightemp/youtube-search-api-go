@@ -54,24 +54,34 @@ func GetYoutubeInitData(url string) (*YoutubeInitData, error) {
 }
 
 func ExtractTextFromRuns(data interface{}) string {
-	if runs, ok := data.(map[string]interface{})["runs"].([]interface{}); ok {
-		var texts []string
-		for _, run := range runs {
-			if runMap, ok := run.(map[string]interface{}); ok {
-				if text, ok := runMap["text"].(string); ok {
-					texts = append(texts, text)
+	switch v := data.(type) {
+	case map[string]interface{}:
+		if runs, ok := v["runs"].([]interface{}); ok {
+			var texts []string
+			for _, run := range runs {
+				if runMap, ok := run.(map[string]interface{}); ok {
+					if text, ok := runMap["text"].(string); ok {
+						texts = append(texts, text)
+					}
 				}
 			}
+			return strings.Join(texts, "")
 		}
-		return strings.Join(texts, "")
+	case string:
+		return v
 	}
 	return ""
 }
 
-func IsLiveVideo(viewCount interface{}) bool {
-	if viewCountRenderer, ok := viewCount.(map[string]interface{}); ok {
-		if _, ok := viewCountRenderer["isLive"]; ok {
-			return true
+func IsLiveVideo(video interface{}) bool {
+	switch v := video.(type) {
+	case Video:
+		return v.IsLive
+	case map[string]interface{}:
+		if viewCount, ok := v["viewCount"].(map[string]interface{}); ok {
+			if _, ok := viewCount["isLive"]; ok {
+				return true
+			}
 		}
 	}
 	return false

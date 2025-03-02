@@ -4,16 +4,16 @@ import (
 	"fmt"
 )
 
-func GetPlaylistData(playlistId string, limit int) (map[string]interface{}, error) {
+func GetPlaylistData(playlistId string, limit int) (PlaylistData, error) {
 	endpoint := fmt.Sprintf("%s/playlist?list=%s", YoutubeEndpoint, playlistId)
 
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("error getting playlist data: %v", err)
+		return PlaylistData{}, fmt.Errorf("error getting playlist data: %v", err)
 	}
 
-	result := make(map[string]interface{})
-	items := []map[string]interface{}{}
+	var result PlaylistData
+	items := []interface{}{}
 
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnBrowseResultsRenderer, ok := contents["twoColumnBrowseResultsRenderer"].(map[string]interface{}); ok {
@@ -56,36 +56,36 @@ func GetPlaylistData(playlistId string, limit int) (map[string]interface{}, erro
 		items = items[:limit]
 	}
 
-	result["items"] = items
-	result["metadata"] = extractPlaylistMetadata(initData.Initdata)
+	result.Items = items
+	result.Metadata = extractPlaylistMetadata(initData.Initdata)
 
 	return result, nil
 }
 
-func ExtractPlaylistData(playlistRenderer map[string]interface{}) map[string]interface{} {
-	playlist := make(map[string]interface{})
+func ExtractPlaylistData(playlistRenderer map[string]interface{}) Playlist {
+	playlist := Playlist{
+		Type:   "playlist",
+		IsLive: false,
+	}
 
 	if id, ok := playlistRenderer["playlistId"].(string); ok {
-		playlist["id"] = id
+		playlist.ID = id
 	}
-	playlist["type"] = "playlist"
 
 	if thumbnail, ok := playlistRenderer["thumbnails"].([]interface{}); ok {
-		playlist["thumbnail"] = thumbnail
+		playlist.Thumbnail = thumbnail
 	}
 
 	if title, ok := playlistRenderer["title"].(map[string]interface{}); ok {
 		if simpleText, ok := title["simpleText"].(string); ok {
-			playlist["title"] = simpleText
+			playlist.Title = simpleText
 		}
 	}
 
 	if videoCount, ok := playlistRenderer["videoCount"].(string); ok {
-		playlist["length"] = videoCount
-		playlist["videoCount"] = videoCount
+		playlist.Length = videoCount
+		playlist.VideoCount = videoCount
 	}
-
-	playlist["isLive"] = false
 
 	return playlist
 }

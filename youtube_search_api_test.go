@@ -17,11 +17,11 @@ func TestGetData(t *testing.T) {
 		t.Logf("GetData failed: %v", err)
 		t.Skip("Skipping test due to network error")
 	}
-	if result == nil {
-		t.Error("GetData returned nil result")
-	}
-	if items, ok := result["items"].([]map[string]interface{}); !ok || len(items) == 0 {
+	if len(result.Items) == 0 {
 		t.Error("GetData returned no items")
+	}
+	if result.NextPage == nil {
+		t.Error("GetData returned nil NextPage")
 	}
 }
 
@@ -31,11 +31,26 @@ func TestGetVideoDetails(t *testing.T) {
 		t.Logf("GetVideoDetails failed: %v", err)
 		t.Skip("Skipping test due to network error")
 	}
-	if result == nil {
-		t.Error("GetVideoDetails returned nil result")
+	if result.ID == "" {
+		t.Error("GetVideoDetails returned empty ID")
 	}
-	if _, ok := result["id"]; !ok {
-		t.Error("GetVideoDetails result doesn't contain 'id'")
+	if result.Title == "" {
+		t.Error("GetVideoDetails returned empty Title")
+	}
+	if result.Channel == "" {
+		t.Error("GetVideoDetails returned empty Channel")
+	}
+	if result.Description == "" {
+		t.Error("GetVideoDetails returned empty Description")
+	}
+	if result.Thumbnail == nil {
+		t.Error("GetVideoDetails returned nil Thumbnail")
+	}
+	if len(result.Keywords) == 0 {
+		t.Error("GetVideoDetails returned no Keywords")
+	}
+	if len(result.Suggestion) == 0 {
+		t.Error("GetVideoDetails returned no Suggestions")
 	}
 }
 
@@ -45,11 +60,11 @@ func TestGetPlaylistData(t *testing.T) {
 		t.Logf("GetPlaylistData failed: %v", err)
 		t.Skip("Skipping test due to network error")
 	}
-	if result == nil {
-		t.Error("GetPlaylistData returned nil result")
-	}
-	if items, ok := result["items"].([]map[string]interface{}); !ok || len(items) == 0 {
+	if len(result.Items) == 0 {
 		t.Error("GetPlaylistData returned no items")
+	}
+	if result.Metadata == nil {
+		t.Error("GetPlaylistData returned nil metadata")
 	}
 }
 
@@ -59,10 +74,7 @@ func TestGetSuggestData(t *testing.T) {
 		t.Logf("GetSuggestData failed: %v", err)
 		t.Skip("Skipping test due to network error")
 	}
-	if result == nil {
-		t.Error("GetSuggestData returned nil result")
-	}
-	if items, ok := result["items"].([]map[string]interface{}); !ok || len(items) == 0 {
+	if len(result.Items) == 0 {
 		t.Error("GetSuggestData returned no items")
 	}
 }
@@ -87,10 +99,18 @@ func TestGetShortVideo(t *testing.T) {
 		t.Logf("GetShortVideo failed: %v", err)
 		t.Skip("Skipping test due to network error")
 	}
-	if result == nil {
-		t.Error("GetShortVideo returned nil result")
-	}
 	if len(result) == 0 {
 		t.Error("GetShortVideo returned no data")
+	}
+	for _, video := range result {
+		if video.Type != "short" {
+			t.Errorf("Expected video type 'short', got '%s'", video.Type)
+		}
+		if video.ID == "" {
+			t.Error("GetShortVideo returned a video with empty ID")
+		}
+		if video.Title == "" {
+			t.Error("GetShortVideo returned a video with empty Title")
+		}
 	}
 }

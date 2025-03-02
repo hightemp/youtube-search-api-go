@@ -7,14 +7,14 @@ import (
 	"regexp"
 )
 
-func GetSuggestData(limit int) (map[string]interface{}, error) {
+func GetSuggestData(limit int) (SuggestData, error) {
 	initData, err := GetYoutubeInitData(YoutubeEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("error getting recommendation data: %v", err)
+		return SuggestData{}, fmt.Errorf("error getting recommendation data: %v", err)
 	}
 
-	result := make(map[string]interface{})
-	items := []map[string]interface{}{}
+	var result SuggestData
+	items := []interface{}{}
 
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnBrowseResultsRenderer, ok := contents["twoColumnBrowseResultsRenderer"].(map[string]interface{}); ok {
@@ -47,25 +47,38 @@ func GetSuggestData(limit int) (map[string]interface{}, error) {
 		items = items[:limit]
 	}
 
-	result["items"] = items
+	result.Items = items
 
 	return result, nil
 }
 
-func GetVideoDetails(videoId string) (map[string]interface{}, error) {
+func GetVideoDetails(videoId string) (VideoDetails, error) {
 	endpoint := fmt.Sprintf("%s/watch?v=%s", YoutubeEndpoint, videoId)
 
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("error getting video data: %v", err)
+		return VideoDetails{}, fmt.Errorf("error getting video data: %v", err)
 	}
 
 	playerData, err := GetYoutubePlayerDetail(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("error getting player data: %v", err)
+		return VideoDetails{}, fmt.Errorf("error getting player data: %v", err)
 	}
 
-	result := make(map[string]interface{})
+	result := VideoDetails{
+		ID:          videoId,
+		Thumbnail:   playerData["thumbnail"].(map[string]interface{}),
+		Description: playerData["shortDescription"].(string),
+	}
+
+	if keywords, ok := playerData["keywords"].([]interface{}); ok {
+		result.Keywords = make([]string, len(keywords))
+		for i, keyword := range keywords {
+			if str, ok := keyword.(string); ok {
+				result.Keywords[i] = str
+			}
+		}
+	}
 
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnWatchNextResults, ok := contents["twoColumnWatchNextResults"].(map[string]interface{}); ok {
@@ -74,15 +87,14 @@ func GetVideoDetails(videoId string) (map[string]interface{}, error) {
 					if contents, ok := resultsContents["contents"].([]interface{}); ok && len(contents) > 1 {
 						if videoPrimaryInfoRenderer, ok := contents[0].(map[string]interface{}); ok {
 							if primaryInfo, ok := videoPrimaryInfoRenderer["videoPrimaryInfoRenderer"].(map[string]interface{}); ok {
-								result["title"] = ExtractTextFromRuns(primaryInfo["title"])
-								result["isLive"] = IsLiveVideo(primaryInfo["viewCount"])
+								result.Title = ExtractTextFromRuns(primaryInfo["title"])
 							}
 						}
 						if videoSecondaryInfoRenderer, ok := contents[1].(map[string]interface{}); ok {
 							if secondaryInfo, ok := videoSecondaryInfoRenderer["videoSecondaryInfoRenderer"].(map[string]interface{}); ok {
 								if owner, ok := secondaryInfo["owner"].(map[string]interface{}); ok {
 									if videoOwnerRenderer, ok := owner["videoOwnerRenderer"].(map[string]interface{}); ok {
-										result["channel"] = ExtractTextFromRuns(videoOwnerRenderer["title"])
+										result.Channel = ExtractTextFromRuns(videoOwnerRenderer["title"])
 									}
 								}
 							}
@@ -93,13 +105,7 @@ func GetVideoDetails(videoId string) (map[string]interface{}, error) {
 		}
 	}
 
-	result["id"] = playerData["videoId"]
-	result["thumbnail"] = playerData["thumbnail"]
-	result["channelId"] = playerData["channelId"]
-	result["description"] = playerData["shortDescription"]
-	result["keywords"] = playerData["keywords"]
-	suggestions := ExtractSuggestions(initData.Initdata)
-	result["suggestion"] = suggestions
+	result.Suggestion = ExtractSuggestions(initData.Initdata)
 	return result, nil
 }
 
@@ -135,12 +141,12 @@ func GetYoutubePlayerDetail(url string) (map[string]interface{}, error) {
 	return result, nil
 }
 
-func GetShortVideo() ([]map[string]interface{}, error) {
+func GetShortVideo() ([]Video, error) {
 	initData, err := GetYoutubeInitData(YoutubeEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error getting short video data: %v", err)
 	}
-	var shortVideos []map[string]interface{}
+	var shortVideos []Video
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnBrowseResultsRenderer, ok := contents["twoColumnBrowseResultsRenderer"].(map[string]interface{}); ok {
 			if tabs, ok := twoColumnBrowseResultsRenderer["tabs"].([]interface{}); ok && len(tabs) > 0 {
@@ -162,7 +168,8 @@ func GetShortVideo() ([]map[string]interface{}, error) {
 																			if richItemRenderer, ok := shelfItem.(map[string]interface{})["richItemRenderer"]; ok {
 																				if content, ok := richItemRenderer.(map[string]interface{})["content"]; ok {
 																					if reelItemRenderer, ok := content.(map[string]interface{})["reelItemRenderer"]; ok {
-																						shortVideo := ExtractShortVideoData(reelItemRenderer.(map[string]interface{}))
+																						shortVideo := ExtractVideoData(reelItemRenderer.(map[string]interface{}))
+																						shortVideo.Type = "short"
 																						shortVideos = append(shortVideos, shortVideo)
 																					}
 																				}
@@ -188,20 +195,22 @@ func GetShortVideo() ([]map[string]interface{}, error) {
 	return shortVideos, nil
 }
 
-func ExtractVideoData(videoRenderer map[string]interface{}) map[string]interface{} {
-	video := make(map[string]interface{})
-	if id, ok := videoRenderer["videoId"].(string); ok {
-		video["id"] = id
+func ExtractVideoData(videoRenderer map[string]interface{}) Video {
+	video := Video{
+		Type:   "video",
+		IsLive: false,
 	}
-	video["type"] = "video"
+	if id, ok := videoRenderer["videoId"].(string); ok {
+		video.ID = id
+	}
 	if thumbnail, ok := videoRenderer["thumbnail"].(map[string]interface{}); ok {
-		video["thumbnail"] = thumbnail
+		video.Thumbnail = thumbnail
 	}
 	if title, ok := videoRenderer["title"].(map[string]interface{}); ok {
 		if runs, ok := title["runs"].([]interface{}); ok && len(runs) > 0 {
 			if run, ok := runs[0].(map[string]interface{}); ok {
 				if text, ok := run["text"].(string); ok {
-					video["title"] = text
+					video.Title = text
 				}
 			}
 		}
@@ -210,23 +219,22 @@ func ExtractVideoData(videoRenderer map[string]interface{}) map[string]interface
 		if runs, ok := ownerText["runs"].([]interface{}); ok && len(runs) > 0 {
 			if run, ok := runs[0].(map[string]interface{}); ok {
 				if text, ok := run["text"].(string); ok {
-					video["channelTitle"] = text
+					video.ChannelTitle = text
 				}
 			}
 		}
 	}
 	if lengthText, ok := videoRenderer["lengthText"].(map[string]interface{}); ok {
 		if simpleText, ok := lengthText["simpleText"].(string); ok {
-			video["length"] = simpleText
+			video.Length = simpleText
 		}
 	}
-	video["isLive"] = false
 	if badges, ok := videoRenderer["badges"].([]interface{}); ok {
 		for _, badge := range badges {
 			if badgeMap, ok := badge.(map[string]interface{}); ok {
 				if metadataBadgeRenderer, ok := badgeMap["metadataBadgeRenderer"].(map[string]interface{}); ok {
 					if style, ok := metadataBadgeRenderer["style"].(string); ok && style == "BADGE_STYLE_TYPE_LIVE_NOW" {
-						video["isLive"] = true
+						video.IsLive = true
 						break
 					}
 				}
@@ -256,8 +264,8 @@ func ExtractShortVideoData(reelItemRenderer map[string]interface{}) map[string]i
 	return shortVideo
 }
 
-func ExtractSuggestions(initdata map[string]interface{}) []map[string]interface{} {
-	var suggestions []map[string]interface{}
+func ExtractSuggestions(initdata map[string]interface{}) []interface{} {
+	var suggestions []interface{}
 	if contents, ok := initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnWatchNextResults, ok := contents["twoColumnWatchNextResults"].(map[string]interface{}); ok {
 			if secondaryResults, ok := twoColumnWatchNextResults["secondaryResults"].(map[string]interface{}); ok {

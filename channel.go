@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func GetChannelById(channelId string) ([]map[string]interface{}, error) {
+func GetChannelById(channelId string) ([]Tab, error) {
 	endpoint := fmt.Sprintf("%s/channel/%s", YoutubeEndpoint, channelId)
 
 	initData, err := GetYoutubeInitData(endpoint)
@@ -12,7 +12,7 @@ func GetChannelById(channelId string) ([]map[string]interface{}, error) {
 		return nil, fmt.Errorf("error getting channel data: %v", err)
 	}
 
-	var tabs []map[string]interface{}
+	var tabs []Tab
 
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnBrowseResultsRenderer, ok := contents["twoColumnBrowseResultsRenderer"].(map[string]interface{}); ok {
@@ -20,12 +20,12 @@ func GetChannelById(channelId string) ([]map[string]interface{}, error) {
 				for _, tab := range tabsData {
 					if tabMap, ok := tab.(map[string]interface{}); ok {
 						if tabRenderer, ok := tabMap["tabRenderer"].(map[string]interface{}); ok {
-							tabInfo := make(map[string]interface{})
+							var tabInfo Tab
 							if title, ok := tabRenderer["title"].(string); ok {
-								tabInfo["title"] = title
+								tabInfo.Title = title
 							}
 							if content, ok := tabRenderer["content"].(map[string]interface{}); ok {
-								tabInfo["content"] = content
+								tabInfo.Content = content
 							}
 							tabs = append(tabs, tabInfo)
 						}
@@ -38,21 +38,22 @@ func GetChannelById(channelId string) ([]map[string]interface{}, error) {
 	return tabs, nil
 }
 
-func ExtractChannelData(channelRenderer map[string]interface{}) map[string]interface{} {
-	channel := make(map[string]interface{})
+func ExtractChannelData(channelRenderer map[string]interface{}) Channel {
+	channel := Channel{
+		Type: "channel",
+	}
 
 	if id, ok := channelRenderer["channelId"].(string); ok {
-		channel["id"] = id
+		channel.ID = id
 	}
-	channel["type"] = "channel"
 
 	if thumbnail, ok := channelRenderer["thumbnail"].(map[string]interface{}); ok {
-		channel["thumbnail"] = thumbnail
+		channel.Thumbnail = thumbnail
 	}
 
 	if title, ok := channelRenderer["title"].(map[string]interface{}); ok {
 		if simpleText, ok := title["simpleText"].(string); ok {
-			channel["title"] = simpleText
+			channel.Title = simpleText
 		}
 	}
 

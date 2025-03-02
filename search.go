@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func GetData(keyword string, withPlaylist bool, limit int, options []map[string]string) (map[string]interface{}, error) {
+func GetData(keyword string, withPlaylist bool, limit int, options []map[string]string) (SearchResult, error) {
 	endpoint := fmt.Sprintf("%s/results?search_query=%s", YoutubeEndpoint, url.QueryEscape(keyword))
 	if len(options) > 0 {
 		for _, opt := range options {
@@ -29,10 +29,10 @@ func GetData(keyword string, withPlaylist bool, limit int, options []map[string]
 	}
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
-		return nil, err
+		return SearchResult{}, err
 	}
-	result := make(map[string]interface{})
-	items := []map[string]interface{}{}
+	var result SearchResult
+	items := []interface{}{}
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnSearchResultsRenderer, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{}); ok {
 			if primaryContents, ok := twoColumnSearchResultsRenderer["primaryContents"].(map[string]interface{}); ok {
@@ -70,8 +70,8 @@ func GetData(keyword string, withPlaylist bool, limit int, options []map[string]
 		items = items[:limit]
 	}
 
-	result["items"] = items
-	result["nextPage"] = map[string]interface{}{
+	result.Items = items
+	result.NextPage = map[string]interface{}{
 		"nextPageToken": initData.APIToken,
 		"nextPageContext": map[string]interface{}{
 			"context":      initData.Context,
@@ -117,7 +117,7 @@ func NextPage(nextPage map[string]interface{}, withPlaylist bool, limit int) (ma
 		return nil, fmt.Errorf("error parsing JSON response: %v", err)
 	}
 
-	items := []map[string]interface{}{}
+	items := []interface{}{}
 
 	if onResponseReceivedCommands, ok := responseData["onResponseReceivedCommands"].([]interface{}); ok {
 		for _, command := range onResponseReceivedCommands {
