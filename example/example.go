@@ -1,15 +1,19 @@
-package main
+package cli
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 
-	youtubesearchapi "github.com/hightemp/youtube-search-api-go"
+	youtubesearchapi "github.com/hightemp/youtube-search-api-go/pkg/youtubesearchapi"
 )
 
-func main() {
+func Example() {
+	query := flag.String("query", "golang tutorial", "Search query")
+	flag.Parse()
+
 	proxyURL := os.Getenv("HTTP_PROXY")
 	if proxyURL == "" {
 		fmt.Println("HTTP_PROXY is not set. Using direct connection.")
@@ -17,7 +21,7 @@ func main() {
 		fmt.Printf("Using proxy server: %s\n", proxyURL)
 	}
 
-	result, err := youtubesearchapi.GetData("golang tutorial", true, 5, nil)
+	result, err := youtubesearchapi.GetData(*query, true, 5, nil)
 	if err != nil {
 		log.Fatalf("Error getting data: %v", err)
 	}
