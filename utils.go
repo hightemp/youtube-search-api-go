@@ -3,56 +3,50 @@ package youtubesearchapi
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"regexp"
 	"strings"
 )
 
-// YoutubeInitData определена в types.go
-// httpClient определен в client.go
-
 func GetYoutubeInitData(url string) (*YoutubeInitData, error) {
 	resp, err := HttpClient.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при выполнении запроса: %v", err)
+		return nil, fmt.Errorf("error executing request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при чтении ответа: %v", err)
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
 	bodyStr := string(body)
 
 	initData := &YoutubeInitData{}
 
-	// Извлечение ytInitialData
 	ytInitDataRegex := regexp.MustCompile(`var ytInitialData = (.+?);</script>`)
 	matches := ytInitDataRegex.FindStringSubmatch(bodyStr)
 	if len(matches) > 1 {
 		err = json.Unmarshal([]byte(matches[1]), &initData.Initdata)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка при разборе ytInitialData: %v", err)
+			return nil, fmt.Errorf("error parsing ytInitialData: %v", err)
 		}
 	} else {
-		return nil, fmt.Errorf("не удалось найти ytInitialData")
+		return nil, fmt.Errorf("failed to find ytInitialData")
 	}
 
-	// Извлечение innertubeApiKey
 	apiKeyRegex := regexp.MustCompile(`"innertubeApiKey":"(.+?)"`)
 	matches = apiKeyRegex.FindStringSubmatch(bodyStr)
 	if len(matches) > 1 {
 		initData.APIToken = matches[1]
 	}
 
-	// Извлечение INNERTUBE_CONTEXT
 	contextRegex := regexp.MustCompile(`INNERTUBE_CONTEXT":(.+?)}},`)
 	matches = contextRegex.FindStringSubmatch(bodyStr)
 	if len(matches) > 1 {
 		err = json.Unmarshal([]byte(matches[1]+`}}`), &initData.Context)
 		if err != nil {
-			return nil, fmt.Errorf("ошибка при разборе INNERTUBE_CONTEXT: %v", err)
+			return nil, fmt.Errorf("error parsing INNERTUBE_CONTEXT: %v", err)
 		}
 	}
 

@@ -9,7 +9,7 @@ func GetPlaylistData(playlistId string, limit int) (map[string]interface{}, erro
 
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при получении данных плейлиста: %v", err)
+		return nil, fmt.Errorf("error getting playlist data: %v", err)
 	}
 
 	result := make(map[string]interface{})

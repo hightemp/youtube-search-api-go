@@ -9,7 +9,7 @@ func GetChannelById(channelId string) ([]map[string]interface{}, error) {
 
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при получении данных канала: %v", err)
+		return nil, fmt.Errorf("error getting channel data: %v", err)
 	}
 
 	var tabs []map[string]interface{}

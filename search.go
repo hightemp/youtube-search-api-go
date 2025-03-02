@@ -3,23 +3,13 @@ package youtubesearchapi
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 )
 
-// GetYoutubeInitData должна быть определена в utils.go
-// extractVideoData должна быть определена в video.go
-// extractChannelData должна быть определена в channel.go
-// extractPlaylistData должна быть определена в playlist.go
-// extractContinuationToken должна быть определена в utils.go
-
-// httpClient должен быть определен в другом файле пакета
-
 func GetData(keyword string, withPlaylist bool, limit int, options []map[string]string) (map[string]interface{}, error) {
 	endpoint := fmt.Sprintf("%s/results?search_query=%s", YoutubeEndpoint, url.QueryEscape(keyword))
-
-	// Добавление параметров поиска на основе options
 	if len(options) > 0 {
 		for _, opt := range options {
 			if t, ok := opt["type"]; ok {
@@ -37,16 +27,12 @@ func GetData(keyword string, withPlaylist bool, limit int, options []map[string]
 			}
 		}
 	}
-
 	initData, err := GetYoutubeInitData(endpoint)
 	if err != nil {
 		return nil, err
 	}
-
 	result := make(map[string]interface{})
 	items := []map[string]interface{}{}
-
-	// Извлечение данных из initData и формирование результата
 	if contents, ok := initData.Initdata["contents"].(map[string]interface{}); ok {
 		if twoColumnSearchResultsRenderer, ok := contents["twoColumnSearchResultsRenderer"].(map[string]interface{}); ok {
 			if primaryContents, ok := twoColumnSearchResultsRenderer["primaryContents"].(map[string]interface{}); ok {
@@ -99,36 +85,36 @@ func GetData(keyword string, withPlaylist bool, limit int, options []map[string]
 func NextPage(nextPage map[string]interface{}, withPlaylist bool, limit int) (map[string]interface{}, error) {
 	nextPageToken, ok := nextPage["nextPageToken"].(string)
 	if !ok {
-		return nil, fmt.Errorf("неверный формат nextPageToken")
+		return nil, fmt.Errorf("invalid nextPageToken format")
 	}
 
 	nextPageContext, ok := nextPage["nextPageContext"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("неверный формат nextPageContext")
+		return nil, fmt.Errorf("invalid nextPageContext format")
 	}
 
 	endpoint := fmt.Sprintf("%s/youtubei/v1/search?key=%s", YoutubeEndpoint, nextPageToken)
 
 	jsonData, err := json.Marshal(nextPageContext)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при маршалинге nextPageContext: %v", err)
+		return nil, fmt.Errorf("error marshaling nextPageContext: %v", err)
 	}
 
 	resp, err := HttpClient.Post(endpoint, "application/json", strings.NewReader(string(jsonData)))
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при выполнении POST-запроса: %v", err)
+		return nil, fmt.Errorf("error executing POST request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при чтении ответа: %v", err)
+		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
 	var responseData map[string]interface{}
 	err = json.Unmarshal(body, &responseData)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка при разборе JSON-ответа: %v", err)
+		return nil, fmt.Errorf("error parsing JSON response: %v", err)
 	}
 
 	items := []map[string]interface{}{}
